@@ -25,10 +25,25 @@ group-toolkit/
 │   ├── tools.md                 ←    工具安装 & 使用
 │   └── how-we-work.md           ←    沟通、代码、会议、文档规范
 │
-└── templates/                   ← 📋 模板：组内通用格式
-    ├── weekly-report.md         ←    周报
-    ├── meeting-notes.md         ←    会议记录
-    └── paper-presentation.md    ←    组会论文报告
+├── repro/                       ← 🔬 复现：实验复现记录
+│   └── template/                ←    复现模板（环境 / 结果 / 踩坑记录）
+│
+├── templates/                   ← 📋 模板：组内通用格式
+│   ├── weekly-report.md         ←    周报
+│   ├── meeting-notes.md         ←    会议记录
+│   ├── paper-presentation.md    ←    组会论文报告
+│   ├── internal-review.md       ←    投稿前组内预审
+│   ├── writing-checklist.md     ←    论文投稿前自查清单
+│   └── figure-guide.md          ←    Figure 规范（颜色 / 排版 / 工具）
+│
+├── survival-guide/              ← 🧭 生存手册：组员最需要但最少被写下来的
+│   ├── how-to-choose-problem.md ←    怎么选研究方向
+│   ├── how-to-write-paper.md    ←    从 outline 到 camera-ready
+│   ├── how-to-give-talk.md      ←    组会 & conference presentation
+│   ├── conference-list.md       ←    各顶会 deadline 和投稿经验
+│   └── career-advice.md         ←    找教职 / 实习 / 工业界
+│
+└── projects.md                  ← 📊 组内活跃项目一览（谁在做什么）
 ```
 
 ---
@@ -117,6 +132,14 @@ cp paper-notes/template.md paper-notes/2026/作者-关键词.md
 
 ---
 
+## 🔬 Repro
+
+复现论文的实验记录。每篇一个目录，记录环境、结果、踩坑。跑过的代码是资产——下次做类似方向可以直接改，不用从零开始。
+
+→ [repro/README.md](repro/README.md)
+
+---
+
 ## 📋 Templates
 
 | 模板 | 用途 | 频率 |
@@ -124,6 +147,29 @@ cp paper-notes/template.md paper-notes/2026/作者-关键词.md
 | [weekly-report.md](templates/weekly-report.md) | 周报 | 每周五 |
 | [meeting-notes.md](templates/meeting-notes.md) | 会议记录 | 每次会议 |
 | [paper-presentation.md](templates/paper-presentation.md) | 组会讲论文 | 轮到你 |
+| [internal-review.md](templates/internal-review.md) | 投稿前组内预审 | 每次投稿前 |
+| [writing-checklist.md](templates/writing-checklist.md) | 论文投稿前自查 | 每次投稿前 |
+| [figure-guide.md](templates/figure-guide.md) | Figure 规范 | 画图前看一眼 |
+
+---
+
+## 🧭 Survival Guide
+
+组员真正需要、但很少被写下来的东西。按需阅读：
+
+| 文档 | 什么时候读 |
+|---|---|
+| [how-to-choose-problem.md](survival-guide/how-to-choose-problem.md) | 不知道做什么方向 |
+| [how-to-write-paper.md](survival-guide/how-to-write-paper.md) | 第一次写 paper |
+| [how-to-give-talk.md](survival-guide/how-to-give-talk.md) | 下个月要讲 talk |
+| [conference-list.md](survival-guide/conference-list.md) | 选投稿目标 |
+| [career-advice.md](survival-guide/career-advice.md) | 考虑下一步 |
+
+---
+
+## 📊 Active Projects
+
+→ [projects.md](projects.md) — 谁在做什么，什么阶段，什么产出。
 
 ---
 
