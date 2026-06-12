@@ -14,16 +14,14 @@ pip install feedparser
 
 ### 2. 配邮箱
 
-编辑 `Arxiv_filter.py` 顶部的 `EMAIL_CONFIG`：
+编辑 `Arxiv_filter.py` 顶部的 `EMAIL_CONFIG`，填好 `sender` 和 `recipient`。密码**不要写在代码里**，二选一：
 
-```python
-EMAIL_CONFIG = {
-    "smtp_host": "smtp.gmail.com",
-    "smtp_port": 587,
-    "sender": "你的邮箱@gmail.com",
-    "password": "Gmail应用专用密码",
-    "recipient": "接收邮箱@gmail.com",
-}
+```bash
+# 方法 A：环境变量（推荐）
+export ARXIV_DIGEST_EMAIL_PASSWORD="你的Gmail应用专用密码"
+
+# 方法 B：本地文件（已在 .gitignore）
+echo "你的Gmail应用专用密码" > .email_password
 ```
 
 > Gmail 应用专用密码在这里获取：https://myaccount.google.com/apppasswords（需先开两步验证）
@@ -44,19 +42,36 @@ OCS spotlight matched: 23 → top 10
 
 生成的 `daily_digest.md` 也会保存在当前目录。
 
-### 4. 设为每天自动跑 (macOS)
+### 4. 设为每天自动跑
+
+**macOS：**
 
 ```bash
 ./setup.zsh
 ```
 
-之后每天上午 9:00 自动执行。Mac 休眠期间错过的任务会在唤醒后补跑。
+之后每天上午 9:00 自动执行。休眠期间错过的任务会在唤醒后补跑。
 
 ```bash
-# 常用管理命令
-launchctl list | grep arxiv            # 查看任务状态
-launchctl start com.arxiv.daily-digest # 手动触发一次
+# 管理命令
+launchctl list | grep arxiv            # 查看状态
+launchctl start com.arxiv.daily-digest # 手动触发
 tail launchd_stdout.log                # 查看日志
+```
+
+**Windows（PowerShell，以管理员身份运行）：**
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+.\setup.ps1
+```
+
+在 Task Scheduler 中创建每天 9:00 的任务，错过补执行。
+
+```powershell
+# 管理命令
+schtasks /query /tn "arXiv Daily Digest" /v   # 查看详情
+schtasks /run /tn "arXiv Daily Digest"         # 手动触发
 ```
 
 ## 调参
