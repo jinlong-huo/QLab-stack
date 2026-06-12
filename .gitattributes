@@ -1,0 +1,32 @@
+# Cross-platform line ending normalization
+* text=auto
+
+# Shell scripts must use LF
+*.sh text eol=lf
+*.zsh text eol=lf
+
+# Windows scripts must use CRLF
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Python
+*.py text eol=lf
+
+# Markdown — always LF for consistency
+*.md text eol=lf
+
+# Binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.plist binary
+
+# Linguist — mark generated files as vendored / not counted
+daily_digest.md linguist-generated=true
+seen_papers.json linguist-generated=true
+launchd_stdout.log linguist-generated=true
+launchd_stderr.log linguist-generated=true

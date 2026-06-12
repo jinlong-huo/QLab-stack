@@ -1,0 +1,26 @@
+# CODEOWNERS — who reviews what
+#
+# Order is important: the last matching pattern takes precedence.
+# When someone opens a PR touching these paths, the listed owners
+# are automatically requested for review.
+
+# Shared infrastructure — everyone needs a second pair of eyes
+*.py              @jinlong-huo
+*.sh              @jinlong-huo
+*.zsh             @jinlong-huo
+*.ps1             @jinlong-huo
+
+# Shared group assets — any senior member can review
+/templates/       @jinlong-huo
+/onboarding/      @jinlong-huo
+/offboarding/     @jinlong-huo
+/survival-guide/  @jinlong-huo
+/knowledge-base/  @jinlong-huo
+
+# Root docs
+/README.md        @jinlong-huo
+/projects.md      @jinlong-huo
+/CONTRIBUTING.md  @jinlong-huo
+
+# Personal directories — each member owns their own
+/members/jinlong-huo/  @jinlong-huo

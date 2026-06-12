@@ -1,7 +1,7 @@
 # Group Toolkit
 
 > 可传承的组内工作流基础设施。
-> 自动化发现论文 → 结构化阅读 → 知识沉淀 → 新成员上手，全链路模板化。
+> 自动化发现论文 → 结构化阅读 → 知识沉淀 → 新成员上手 → 离组交接，全链路模板化。
 
 ## 地图
 
@@ -11,24 +11,28 @@ group-toolkit/
 ├── Arxiv_filter.py              ← 🔍 发现：每日自动抓论文 + 邮件推送
 ├── setup.zsh / setup.ps1        ← macOS / Windows 定时任务安装
 │
-├── paper-notes/                 ← 📖 理解：论文笔记库（每篇一文件）
-│   ├── template.md              ←    标准笔记模板（what/why/how/pros/cons）
-│   └── 2026/                    ←    按年份归档
+├── paper-notes/                 ← 📖 共享论文笔记模板
+│   └── template.md              ←    标准笔记模板（what/why/how/pros/cons）
 │
-├── knowledge-base/              ← 🧠 沉淀：按主题组织的研究知识
+├── knowledge-base/              ← 🧠 沉淀：按主题组织的研究知识（共享）
 │   ├── glossary.md              ←    术语表（新人第一站）
 │   ├── reading-roadmap.md       ←    按方向分级的阅读路线图
 │   └── topics/                  ←    各方向的论文脉络与 SOTA
 │
-├── onboarding/                  ← 🚀 上手：新成员入职指南
+├── onboarding/                  ← 🚀 上手：新成员入职指南（共享）
 │   ├── welcome.md               ←    组文化 + 第一周 checklist
 │   ├── tools.md                 ←    工具安装 & 使用
 │   └── how-we-work.md           ←    沟通、代码、会议、文档规范
 │
-├── repro/                       ← 🔬 复现：实验复现记录
+├── offboarding/                 ← 👋 离组：知识交接 + 个人内容提取
+│   ├── exit-checklist.md        ←    离组手续清单
+│   ├── knowledge-handover.md    ←    隐性知识显性化模板
+│   └── extract.sh               ←    一键导出个人目录
+│
+├── repro/                       ← 🔬 复现：共享复现模板
 │   └── template/                ←    复现模板（环境 / 结果 / 踩坑记录）
 │
-├── templates/                   ← 📋 模板：组内通用格式
+├── templates/                   ← 📋 模板：组内通用格式（共享）
 │   ├── weekly-report.md         ←    周报
 │   ├── meeting-notes.md         ←    会议记录
 │   ├── paper-presentation.md    ←    组会论文报告
@@ -36,15 +40,35 @@ group-toolkit/
 │   ├── writing-checklist.md     ←    论文投稿前自查清单
 │   └── figure-guide.md          ←    Figure 规范（颜色 / 排版 / 工具）
 │
-├── survival-guide/              ← 🧭 生存手册：组员最需要但最少被写下来的
+├── survival-guide/              ← 🧭 生存手册（共享）
 │   ├── how-to-choose-problem.md ←    怎么选研究方向
 │   ├── how-to-write-paper.md    ←    从 outline 到 camera-ready
 │   ├── how-to-give-talk.md      ←    组会 & conference presentation
 │   ├── conference-list.md       ←    各顶会 deadline 和投稿经验
 │   └── career-advice.md         ←    找教职 / 实习 / 工业界
 │
-└── projects.md                  ← 📊 组内活跃项目一览（谁在做什么）
+├── members/                     ← 👤 个人工作区（每人一个目录）
+│   ├── _template/               ←    新成员模板
+│   └── jinlong-huo/             ←    你的目录
+│       ├── paper-notes/         ←    个人论文笔记
+│       ├── projects/            ←    私人项目细节
+│       └── repro/               ←    个人实验复现
+│
+└── projects.md                  ← 📊 组内活跃项目一览（共享，仅标题和阶段）
 ```
+
+---
+
+## 目录可见性
+
+| 目录 | 可见范围 | 离组时 |
+|---|---|---|
+| `templates/` `onboarding/` `survival-guide/` `knowledge-base/` | **全组共享** | 留在 repo |
+| `paper-notes/template.md` `repro/template/` | **全组共享** | 留在 repo |
+| `projects.md` | **全组共享**（仅标题+阶段，无细节） | 更新 owner 后留 repo |
+| `members/<name>/paper-notes/` | **组内** | 导出带走 |
+| `members/<name>/repro/` | **组内** | 导出带走 |
+| `members/<name>/projects/` | **本人 + 导师** | 导出带走或交接 |
 
 ---
 
@@ -99,10 +123,10 @@ python3 Arxiv_filter.py --send
 
 ## 📖 Paper Notes
 
-每读完一篇论文，复制模板 → 填空 → 提交 PR。
+每读完一篇论文，在 **个人目录** 下复制模板 → 填空。
 
 ```bash
-cp paper-notes/template.md paper-notes/2026/作者-关键词.md
+cp paper-notes/template.md members/<your-name>/paper-notes/2026/作者-关键词.md
 ```
 
 模板覆盖 **What / Why / How / Pros / Cons / Follow-ups**。三个月后你不会记得这篇论文讲了什么，但笔记会。
@@ -113,7 +137,7 @@ cp paper-notes/template.md paper-notes/2026/作者-关键词.md
 
 ## 🧠 Knowledge Base
 
-按主题沉淀知识，不按论文排列。
+按主题沉淀知识，不按论文排列。**全组共享资产。**
 
 - [glossary.md](knowledge-base/glossary.md) — 术语表，新人第一站
 - [reading-roadmap.md](knowledge-base/reading-roadmap.md) — 按方向分级的阅读路线
@@ -132,9 +156,24 @@ cp paper-notes/template.md paper-notes/2026/作者-关键词.md
 
 ---
 
+## 👋 Offboarding
+
+离组流程。两件事：你带走你的，组留下组的。
+
+1. [exit-checklist.md](offboarding/exit-checklist.md) — 逐项打勾，不遗漏
+2. [knowledge-handover.md](offboarding/knowledge-handover.md) — 隐性知识显性化
+3. [extract.sh](offboarding/extract.sh) — 一键导出个人目录
+
+```bash
+./offboarding/extract.sh <your-name> ~/Desktop/group-export
+```
+
+---
+
 ## 🔬 Repro
 
-复现论文的实验记录。每篇一个目录，记录环境、结果、踩坑。跑过的代码是资产——下次做类似方向可以直接改，不用从零开始。
+复现论文的实验记录。每篇一个目录，记录环境、结果、踩坑。
+个人复现记录放 `members/<name>/repro/`。
 
 → [repro/README.md](repro/README.md)
 
@@ -169,7 +208,7 @@ cp paper-notes/template.md paper-notes/2026/作者-关键词.md
 
 ## 📊 Active Projects
 
-→ [projects.md](projects.md) — 谁在做什么，什么阶段，什么产出。
+→ [projects.md](projects.md) — 谁在做什么，什么阶段，什么产出（仅标题和阶段，细节在个人目录）。
 
 ---
 
@@ -178,4 +217,6 @@ cp paper-notes/template.md paper-notes/2026/作者-关键词.md
 - **模板驱动** — 能填空不写空白页。
 - **写下来才算发生过** — 讨论、决策、理解，全落成文字。
 - **一个人的笔记 → 全组的资产** — glossary 补一个术语、reading-roadmap 加一篇推荐，下一个成员直接复用。
+- **共享与个人分离** — 个人笔记、项目细节、实验记录放在 `members/<name>/`，离组时一键导出，共享资产不受影响。
+- **来有 onboarding，走有 offboarding** — 进组有 checklist 接你，离组有 checklist 送你。
 - **迭代优于完美** — 不完整的 PR > 空着的 TODO。
