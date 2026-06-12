@@ -1,0 +1,22 @@
+# 生成物
+daily_digest.md
+seen_papers.json
+seen_papers.json.bak
+
+# 日志
+launchd_stdout.log
+launchd_stderr.log
+*.log
+
+# Python
+__pycache__/
+*.pyc
+
+# IDE / Claude
+.claude/
+
+# 密钥（本地密码文件）
+.email_password
+
+# macOS
+.DS_Store

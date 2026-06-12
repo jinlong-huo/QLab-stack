@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.arxiv.daily-digest</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/Vir-G/.julia/conda/3/aarch64/bin/python3</string>
+        <string>/Users/Vir-G/Downloads/Projects/RSS_filter/Arxiv_filter.py</string>
+        <string>--send</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/Vir-G/Downloads/Projects/RSS_filter</string>
+
+    <!-- 每天 9:00 触发；若此时休眠，唤醒后自动补执行 -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>9</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <!-- 开机 / 登录时也跑一次，防止休眠期间错过 -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/Vir-G/Downloads/Projects/RSS_filter/launchd_stdout.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/Vir-G/Downloads/Projects/RSS_filter/launchd_stderr.log</string>
+</dict>
+</plist>
