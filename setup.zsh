@@ -37,9 +37,9 @@ echo "  -> 使用: $PYTHON_BIN"
 echo "[2/5] 生成 launchd plist ..."
 mkdir -p "$HOME/Library/LaunchAgents"
 sed \
-    -e "s|/Users/Vir-G/Downloads/Projects/RSS_filter|$SCRIPT_DIR|g" \
+    -e "s|/Users/Vir-G/Downloads/Projects/QLab-stack|$SCRIPT_DIR|g" \
     -e "s|/usr/bin/python3|$PYTHON_BIN|g" \
-    -e "s|/Users/Vir-G/.julia/conda/3/aarch64/bin/python3|$PYTHON_BIN|g" \
+    -e "s|/opt/anaconda3/envs/JLtorch/bin/python3|$PYTHON_BIN|g" \
     "$PLIST_SRC" > "$PLIST_DST"
 echo "  -> 已写入 $PLIST_DST"
 

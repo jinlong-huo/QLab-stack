@@ -7,19 +7,19 @@
 
     <key>ProgramArguments</key>
     <array>
-        <string>/Users/Vir-G/.julia/conda/3/aarch64/bin/python3</string>
-        <string>/Users/Vir-G/Downloads/Projects/RSS_filter/Arxiv_filter.py</string>
+        <string>/opt/anaconda3/envs/JLtorch/bin/python3</string>
+        <string>/Users/Vir-G/Downloads/Projects/QLab-stack/Arxiv_filter.py</string>
         <string>--send</string>
     </array>
 
     <key>WorkingDirectory</key>
-    <string>/Users/Vir-G/Downloads/Projects/RSS_filter</string>
+    <string>/Users/Vir-G/Downloads/Projects/QLab-stack</string>
 
-    <!-- 每天 9:00 触发；若此时休眠，唤醒后自动补执行 -->
+    <!-- 每天 15:00 触发；若此时休眠，唤醒后自动补执行 与美国时间对齐-->
     <key>StartCalendarInterval</key>
     <dict>
         <key>Hour</key>
-        <integer>9</integer>
+        <integer>15</integer>
         <key>Minute</key>
         <integer>0</integer>
     </dict>
@@ -29,9 +29,9 @@
     <true/>
 
     <key>StandardOutPath</key>
-    <string>/Users/Vir-G/Downloads/Projects/RSS_filter/launchd_stdout.log</string>
+    <string>/Users/Vir-G/Downloads/Projects/QLab-stack/launchd_stdout.log</string>
 
     <key>StandardErrorPath</key>
-    <string>/Users/Vir-G/Downloads/Projects/RSS_filter/launchd_stderr.log</string>
+    <string>/Users/Vir-G/Downloads/Projects/QLab-stack/launchd_stderr.log</string>
 </dict>
 </plist>
