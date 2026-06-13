@@ -10,23 +10,32 @@ from email.mime.multipart import MIMEMultipart
 from pathlib import Path
 from datetime import datetime
 
+import time
+import urllib.parse
+
 import feedparser
 
 # =========================
 # 配置
 # =========================
 
-RSS_FEEDS = [
-    "https://rss.arxiv.org/rss/cs.NI",
-    "https://rss.arxiv.org/rss/cs.DC",
-    "https://rss.arxiv.org/rss/cs.OS",
-    "https://rss.arxiv.org/rss/cs.AR",
-    "https://rss.arxiv.org/rss/cs.PF",
-    "https://rss.arxiv.org/rss/cs.AI",
-    "https://rss.arxiv.org/rss/cs.CV",
-    "https://rss.arxiv.org/rss/cs.SY",
-    
+# arXiv 分类（从 API 拉取，不受 RSS skipDays 限制）
+CATEGORIES = [
+    "cs.NI",
+    "cs.DC",
+    "cs.OS",
+    "cs.AR",
+    "cs.PF",
+    "cs.AI",
+    "cs.CV",
+    "cs.SY",
 ]
+
+# 每个分类拉取的最大论文数（按提交日期倒序）
+MAX_PER_CATEGORY = 200
+
+# API 请求间隔（秒），礼貌起见别打太快
+API_DELAY = 1.0
 
 # 关键词权重
 # 设计原则：高分给能明确指向 LLM 推理 / GPU 数据中心 / RDMA 网络的词；
@@ -316,6 +325,20 @@ def send_email(papers, ocs_papers):
 # 主逻辑
 # =========================
 
+def _build_api_url(category, max_results):
+    """构造 arXiv API 查询 URL（Atom 格式，feedparser 可直接解析）"""
+    query = f"cat:{category}"
+    params = {
+        "search_query": query,
+        "start": "0",
+        "max_results": str(max_results),
+        "sortBy": "submittedDate",
+        "sortOrder": "descending",
+    }
+    qs = urllib.parse.urlencode(params)
+    return f"https://export.arxiv.org/api/query?{qs}"
+
+
 def fetch_papers():
 
     seen = load_seen()           # 历史元数据，仅供参考，不阻塞选择
@@ -324,11 +347,16 @@ def fetch_papers():
 
     selected = []
     ocs_selected = []
-    stats = {}  # feed_url -> {total, skipped, selected, ocs_selected}
+    stats = {}  # category -> {total, skipped, selected, ocs_selected}
 
-    for feed_url in RSS_FEEDS:
+    for i, cat in enumerate(CATEGORIES):
 
-        feed = feedparser.parse(feed_url)
+        # 礼貌延迟，避免触发 arXiv 速率限制
+        if i > 0:
+            time.sleep(API_DELAY)
+
+        url = _build_api_url(cat, MAX_PER_CATEGORY)
+        feed = feedparser.parse(url)
         feed_total = 0
         feed_skipped = 0
         feed_selected = 0
@@ -384,7 +412,7 @@ def fetch_papers():
                 "ocs_keywords": ocs_matched[:3]
             }
 
-        stats[feed_url] = {
+        stats[cat] = {
             "total": feed_total,
             "skipped": feed_skipped,
             "selected": feed_selected,
@@ -520,6 +548,7 @@ def generate_markdown(papers, ocs_papers, total_main, total_ocs):
 def main():
 
     do_send = "--send" in sys.argv
+    is_weekend = datetime.now().weekday() >= 5  # 5=Sat, 6=Sun
 
     papers, ocs_papers, total_main, total_ocs = fetch_papers()
 
@@ -529,7 +558,9 @@ def main():
     print(f"OCS spotlight: {len(ocs_papers)} papers")
     print(f"Saved to {OUTPUT_FILE}")
 
-    if do_send:
+    if do_send and is_weekend:
+        print("[email] Weekend — skipping email (arXiv does not publish on Sat/Sun)")
+    elif do_send:
         send_email(papers, ocs_papers)
 
 
