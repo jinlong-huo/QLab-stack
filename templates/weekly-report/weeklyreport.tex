@@ -1,0 +1,93 @@
+% !TEX TS-program = xelatex
+% !TEX encoding = UTF-8 Unicode
+% ================================================
+%  上海交通大学 研究生工作周报
+%  编译: xelatex → bibtex → xelatex → xelatex
+% ================================================
+
+\documentclass{sjtuweekly}
+
+% ========== 参考文献库 ==========
+\bibfile{bib/database}
+
+% ========== 基本信息 ==========
+\member{张\quad 三}
+\weeknum{1}
+
+
+\begin{document}
+
+\makeweeklytitle   % 封面（第1页）
+
+% ================================================
+%  正文从第2页开始
+% ================================================
+
+\section{一、本周工作概要}
+
+\subsection*{1.1\quad 文献阅读}
+
+本周重点研读了 Tussyadiah 等人关于共享经济中用户评价文本分析的论文
+\cite{tussyadiah2015hotels}。该工作使用自然语言处理技术对波特兰地区酒店与
+P2P 住宿平台的消费者评论进行对比分析，为本课题提供了重要的方法论参考。
+
+\subsection*{1.2\quad 实验进展}
+
+\begin{itemize}
+  \item 完成数据集的清洗与预处理，共计处理样本 12\,000 条
+  \item 实现基线模型并在验证集上评估，初步结果如表~\ref{tab:result} 所示
+  \item 针对类别不平衡问题尝试了重采样策略
+\end{itemize}
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{lcc}
+    \toprule
+    方法        & 准确率  & F1 分数 \\
+    \midrule
+    Baseline    & 0.851  & 0.823 \\
+    + Resample  & 0.864  & 0.841 \\
+    Ours (v1)   & 0.892  & 0.871 \\
+    \bottomrule
+  \end{tabular}
+  \caption{各方法在验证集上的性能对比}
+  \label{tab:result}
+\end{table}
+
+\subsection*{1.3\quad 理论分析}
+
+KL 散度是度量两个概率分布差异的基本工具：
+
+\begin{equation}
+  D_{\mathrm{KL}}(p \parallel q)
+    = \int p(\boldsymbol{x}) \,
+      \ln \frac{p(\boldsymbol{x})}{q(\boldsymbol{x})} \,
+      \mathrm{d}\boldsymbol{x},
+  \label{eq:KL}
+\end{equation}
+
+该量在变分推断与生成模型中具有核心地位（式~\ref{eq:KL}）。
+
+% ================================================
+\section{二、遇到的问题与讨论}
+
+\begin{enumerate}
+  \item \textbf{数据不平衡}：正负样本比例约为 1:8，Focal Loss 在初步实验中
+    未能显著提升少数类的召回率，考虑结合过采样策略进一步验证。
+  \item \textbf{收敛速度}：模型在前 20 个 epoch 内 loss 下降缓慢，怀疑与学习
+    率预热策略的设置有关，下周将进行系统的超参数搜索。
+\end{enumerate}
+
+% ================================================
+\section{三、下周工作计划}
+
+\begin{itemize}
+  \item 完成消融实验的全部配置并提交计算任务
+  \item 阅读 Partl 等人的技术写作文献 \cite{partl2016}，为方法部分撰写做准备
+  \item 整理实验日志，补充缺失的随机种子记录
+\end{itemize}
+
+% ================================================
+\printbib
+
+\end{document}

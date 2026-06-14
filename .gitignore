@@ -20,3 +20,42 @@ __pycache__/
 
 # macOS
 .DS_Store
+
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.blg
+*.bcf
+*.run.xml
+*.fls
+*.fdb_latexmk
+*.synctex*
+*.out
+*.toc
+*.lof
+*.lot
+*.loa
+*.lol
+*.nav
+*.snm
+*.vrb
+*.xdv
+*.pyg
+_minted*/
+*.thm
+*.idx
+*.ilg
+*.ind
+*.glg
+*.glo
+*.gls
+*.ist
+*.acn
+*.acr
+*.alg
+*.ent
+*.soc
+*.cut
+*.cpt
+*.spl
+*.mw

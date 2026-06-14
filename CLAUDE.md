@@ -10,7 +10,7 @@ setup.zsh / setup.ps1    # Install launchd (macOS) / schtasks (Windows) daily 09
 members/<name>/           # Personal workspace — paper notes, projects, repros
 paper-notes/              # Shared paper note template
 knowledge-base/           # Glossary, reading roadmap, topic deep-dives
-templates/                # Reusable templates (weekly reports, meeting notes, reviews)
+templates/                # Reusable templates (LaTeX weekly report, meeting notes, reviews)
 survival-guide/           # Career advice, how-to's, conference list
 onboarding/ / offboarding/ # Join/leave procedures
 ```

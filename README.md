@@ -183,7 +183,7 @@ cp paper-notes/template.md members/<your-name>/paper-notes/2026/作者-关键词
 
 | 模板 | 用途 | 频率 |
 |---|---|---|
-| [weekly-report.md](templates/weekly-report.md) | 周报 | 每周五 |
+| [weekly-report/](templates/weekly-report/) | 周报 | 每周五 |
 | [meeting-notes.md](templates/meeting-notes.md) | 会议记录 | 每次会议 |
 | [paper-presentation.md](templates/paper-presentation.md) | 组会讲论文 | 轮到你 |
 | [internal-review.md](templates/internal-review.md) | 投稿前组内预审 | 每次投稿前 |
