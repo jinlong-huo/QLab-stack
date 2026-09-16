@@ -21,6 +21,8 @@ arxiv_digest/               # Pipeline (fetch → filter → select → digest)
 members/<name>/           # Personal workspace — paper notes, projects, repros
 paper-notes/              # Shared paper note template
 knowledge-base/           # Glossary, reading roadmap, topic deep-dives
+  └── topics/             #   One uploaded note per category: llm / ocs / hcf / zotero
+sync/                     # Vault → repo upload (seed.py). One-way, notes only, never writes to the vault
 templates/                # Reusable templates (LaTeX weekly report, meeting notes, reviews)
 survival-guide/           # Career advice, how-to's, conference list
 onboarding/ / offboarding/ # Join/leave procedures
@@ -32,6 +34,10 @@ onboarding/ / offboarding/ # Join/leave procedures
 - **Python**: single dependency (`feedparser`), install with `pip install -r requirements.txt`
 - **Git**: `main` is protected; work on `feature/*` branches; commit types per [CONTRIBUTING.md](CONTRIBUTING.md)
 - **Quick commands**: `make run`, `make daily`, `make test`, `make note-new NAME=... FILE=...`
+- **Vault notes → repo**: `make seed-check` (read-only drift), `make seed-sync ARGS=--apply`,
+  `make seed-add CAT=ocs SRC=OCS/Papers/MixNet_Analysis.md`. One-way upload from the Obsidian vault
+  (`QLAB_VAULT` env var, default `/Users/Vir-G/Documents/Obsidian_Vault`); `sync/seed.py` never writes
+  to the vault. See [sync/README.md](sync/README.md).
 
 ## Pipeline
 
