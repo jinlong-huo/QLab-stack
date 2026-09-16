@@ -1,4 +1,4 @@
-.PHONY: help install run wait test all daily member-new member-export note-new download clean
+.PHONY: help install run wait test all daily member-new member-export note-new download clean seed-check seed-sync seed-add
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -14,8 +14,8 @@ run: ## Run arXiv daily digest (fetch + filter + digest)
 wait: ## Run with auto-retry on 429 rate-limit (5 min wait)
 	python3 arxiv_digest/Arxiv_filter.py --wait
 
-test: ## Run offline tests (subfolder routing + catch-up + download verify)
-	python3 arxiv_digest/test_classify.py && python3 arxiv_digest/test_catchup.py && python3 arxiv_digest/test_verify.py
+test: ## Run offline tests (subfolder routing + catch-up + download verify + vault seed)
+	python3 arxiv_digest/test_classify.py && python3 arxiv_digest/test_catchup.py && python3 arxiv_digest/test_verify.py && python3 sync/test_seed.py
 
 all: ## Full run: filter + download PDFs + rename
 	python3 arxiv_digest/Arxiv_filter.py && make download
@@ -43,6 +43,19 @@ note-new: ## Create a new paper note from template. Usage: make note-new NAME=zh
 	@test -n "$(FILE)" || (echo "Usage: make note-new NAME=<name> FILE=<author-keyword>"; exit 1)
 	cp paper-notes/template.md members/$(NAME)/paper-notes/2026/$(FILE).md
 	@echo "Created members/$(NAME)/paper-notes/2026/$(FILE).md — go fill it in."
+
+# --- Vault → topics (knowledge-base/topics) ---
+
+seed-check: ## Report which vault notes changed since the last upload (read-only)
+	python3 sync/seed.py
+
+seed-sync: ## Re-upload drifted vault notes. Opts: make seed-sync ARGS="--apply"
+	python3 sync/seed.py $(ARGS)
+
+seed-add: ## Add/swap a category seed. Usage: make seed-add CAT=ocs SRC=OCS/Papers/MixNet_Analysis.md
+	@test -n "$(CAT)" || (echo "Usage: make seed-add CAT=<cat> SRC=<vault-relative md>"; exit 1)
+	@test -n "$(SRC)" || (echo "Usage: make seed-add CAT=<cat> SRC=<vault-relative md>"; exit 1)
+	python3 sync/seed.py --add $(CAT) "$(SRC)" $(ARGS)
 
 # --- Maintenance ---
 

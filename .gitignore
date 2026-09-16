@@ -25,6 +25,10 @@ __pycache__/
 # macOS
 .DS_Store
 
+# Vault 上传：仅本地保留的分类（zotero 笔记含个人批注，不进公开仓库）
+knowledge-base/topics/zotero.md
+knowledge-base/topics/attachments/
+
 # LaTeX build artifacts
 *.pdf
 *.aux
