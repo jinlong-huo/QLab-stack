@@ -8,6 +8,7 @@
 分窗口逐窗口拉取，用于长时间未运行后补拉漏掉的论文。
 """
 
+import os
 import random
 import sys
 import time
@@ -18,6 +19,22 @@ import feedparser
 
 from arxiv_digest import config
 from arxiv_digest import filter as flt
+
+# ── Proxy bypass (no_proxy) for arXiv hosts ────────────────────
+# Many proxy/VPN tools (Clash X, Surge, etc.) intercept export.arxiv.org
+# and cause 429 rate-limits or timeouts.  We set no_proxy for these hosts
+# so the OS proxy settings are bypassed for arXiv API/PDF requests.
+_ARXIV_NO_PROXY = ",".join(config.ARXIV_PROXY_BYPASS_HOSTS)
+_NO_PROXY_OLD = os.environ.get("no_proxy", "")
+if config.ARXIV_BYPASS_PROXY:
+    # Append arXiv hosts to any existing no_proxy
+    if _ARXIV_NO_PROXY not in _NO_PROXY_OLD:
+        os.environ["no_proxy"] = (
+            f"{_NO_PROXY_OLD},{_ARXIV_NO_PROXY}"
+            if _NO_PROXY_OLD else _ARXIV_NO_PROXY
+        )
+    # Also set http_proxy to empty for these hosts via urllib handler
+    # (the no_proxy env var covers most tools; urllib also respects NO_PROXY)
 
 
 def _parse_date_arg(s):
@@ -51,7 +68,8 @@ def _build_category_url(category, date_from, date_to, start=0):
         "sortOrder": "descending",
     }
     qs = urllib.parse.urlencode(params)
-    return f"https://export.arxiv.org/api/query?{qs}"
+    base = config.ARXIV_API_BASE_URL.rstrip("/")
+    return f"{base}/api/query?{qs}"
 
 
 def _is_fatal_error(bozo_exception):
@@ -163,9 +181,82 @@ def _is_arxiv_error_feed(feed):
     return None
 
 
+def _fetch_bytes_no_proxy(url, timeout=30):
+    """Fetch URL bytes while bypassing the system/VPN proxy for arXiv hosts.
+
+    feedparser internally uses urllib.request, which on macOS honours the
+    system proxy (including VPN/Clash X/Surge interceptors).  Those proxies
+    often 429-rate-limit or time out on export.arxiv.org.  We instead use a
+    fresh urlopen with an empty ProxyHandler for arXiv domains so requests
+    go direct to arXiv.
+
+    Returns (data, status) where:
+      - data = raw bytes (only for 2xx responses)
+      - status = HTTP status int, or 0 on connection/timeout error
+      On non-2xx responses, data is None so _do_fetch falls back to the
+      normal feedparser path which classifies errors correctly.
+    """
+    import urllib.request as _urllib_request
+    import ssl as _ssl
+
+    data = None
+    status = 0
+
+    if config.ARXIV_BYPASS_PROXY:
+        # No-op ProxyHandler => bypass HTTP(S)_PROXY + macOS system proxy
+        opener = _urllib_request.build_opener(
+            _urllib_request.ProxyHandler({}),
+            _urllib_request.HTTPSHandler(context=_ssl.create_default_context()),
+        )
+    else:
+        opener = _urllib_request.build_opener()
+
+    req = _urllib_request.Request(url, headers={
+        "User-Agent": USER_AGENT,
+        "Accept": "application/atom+xml, application/xml, */*",
+    })
+    try:
+        with opener.open(req, timeout=timeout) as resp:
+            status = getattr(resp, "status", resp.getcode() or 0)
+            if 200 <= status < 300:
+                data = resp.read()
+    except urllib.error.HTTPError as e:
+        # HTTP error with a status code (429, 503, etc.)
+        status = e.code
+        return None, status
+    except Exception:
+        # Connection/timeout/SSL error — no valid status
+        return None, 0
+
+    return data, status
+
+
+def _feed_from_bytes(data):
+    """Parse raw bytes with feedparser (works the same as .parse(url))."""
+    if not data:
+        return None
+    try:
+        return feedparser.parse(data)
+    except Exception:
+        return None
+
+
 def _do_fetch(url):
-    """Single fetch attempt.  Returns (feed, status_int, bozo, is_429, is_503, fatal)."""
-    feed = feedparser.parse(url, agent=USER_AGENT)
+    """Single fetch attempt.  Returns (feed, status_int, bozo, is_429, is_503, fatal).
+
+    If config.ARXIV_BYPASS_PROXY is True, the download bypasses the system
+    proxy so VPN/Clash X/Surge cannot rate-limit or drop arXiv requests.
+
+    If the bypass fails (no data), we fall back to feedparser.parse(url)
+    so the existing error-classification / retry machinery still applies.
+    """
+    # Try direct (proxy-bypass) fetch first
+    data, status_int = _fetch_bytes_no_proxy(url)
+    feed = _feed_from_bytes(data)
+
+    if feed is None:
+        # Fallback: let feedparser handle (goes through system proxy)
+        feed = feedparser.parse(url, agent=USER_AGENT)
     status_int, bozo, is_429, is_503, fatal = _classify_status(feed)
     return feed, status_int, bozo, is_429, is_503, fatal
 
@@ -347,8 +438,193 @@ def _fetch_window(category, date_from, date_to, wait_on_429):
     return all_entries
 
 
+class _HtmlEntry:
+    """Minimal duck-typed entry that mimics feedparser entry attributes.
+
+    The rest of the pipeline accesses entry.id / entry.title / entry.summary
+    / entry.link / entry.author / entry.published_parsed. This class provides
+    those attributes from the HTML scrape data.
+    """
+
+    def __init__(self, id=None, title=None, summary=None, link=None,
+                 arxiv_primary_category=None, author=None, authors=None,
+                 published=None, updated=None, published_parsed=None):
+        self.id = id
+        self.title = title
+        self.summary = summary
+        self.link = link
+        self.arxiv_primary_category = arxiv_primary_category or {"term": ""}
+        self.author = author
+        self.authors = authors or []
+        self.published = published
+        self.updated = updated
+        self.published_parsed = published_parsed
+
+    def get(self, key, default=None):
+        return getattr(self, key, default)
+
+    def __getitem__(self, key):
+        return getattr(self, key)
+
+    def __repr__(self):
+        return f"<HtmlEntry id={self.id!r} title={self.title!r}>"
+
+
+# ── HTML search fallback (when export.arxiv.org is rate-limited) ─
+# arXiv's legacy API at export.arxiv.org uses Fastly CDN, which
+# aggressively rate-limits certain IP ranges.  The main arxiv.org
+# website (served from separate infrastructure) is usually still
+# reachable.  When the API returns 0 entries for a category, we fall
+# back to searching arxiv.org/search/ and parsing the HTML result.
+
+
+def _search_html_category(category, date_from, date_to,
+                          max_results=config.MAX_PER_CATEGORY):
+    """Fallback: scrape arxiv.org HTML search for a category + date range.
+
+    This mirrors the API's _fetch_window() but uses the main www site,
+    which is on separate CDN infrastructure and less subject to the
+    rate-limits that hit export.arxiv.org.
+
+    Returns a list of *dicts* (not feedparser entries) with keys matching
+    feedparser entry attributes: id, title, summary, link, arxiv_primary_category.
+
+    Returns empty list if the search itself is blocked.
+    """
+    import html as _html
+    import json as _json
+    import urllib.request as _urllib_request
+    import ssl as _ssl
+    import re as _re
+
+    all_results = []
+    seen_links = set()
+
+    # Build category-based query — use quoted category name (e.g. "cs.NI") 
+    # which is what arxiv.org/search/ expects.  The "cat:" prefix from the
+    # API doesn't work in HTML search.
+    raw_cat = category
+    cat_query = '"' + raw_cat + '"'
+
+    # arXiv HTML search sorts by relevance by default; add date sort and filter
+    date_filter = (f'submittedDate:[{date_from:%Y%m%d}0000 '
+                   f'TO {date_to:%Y%m%d}2359]')
+    query = f"({cat_query}) AND ({date_filter})"
+
+    for start in range(0, min(max_results, 200), 50):
+        params = urllib.parse.urlencode({
+            "query": query,
+            "searchtype": "all",
+            "start": str(start),
+        })
+        url = f"{config.ARXIV_LIST_BASE_URL.rstrip('/')}/search/?{params}"
+
+        # Fetch HTML (bypass proxy for arXiv hosts)
+        data, status = _fetch_bytes_no_proxy(url, timeout=15)
+
+        # If proxy bypass failed, try via normal urllib
+        if data is None:
+            try:
+                opener = _urllib_request.build_opener(
+                    _urllib_request.HTTPSHandler(
+                        context=_ssl.create_default_context()))
+                req = _urllib_request.Request(
+                    url, headers={"User-Agent": USER_AGENT})
+                with opener.open(req, timeout=15) as resp:
+                    data = resp.read()
+            except Exception:
+                pass
+
+        if not data:
+            print(f"  [{category}] ⛔ HTML search fallback: "
+                  f"no data (page {start // 50 + 1})")
+            break
+
+        html = data.decode("utf-8", errors="replace")
+
+        # Check for rate-limit or block page
+        if "Rate exceeded" in html or "too many requests" in html.lower():
+            print(f"  [{category}] ⛔ HTML search also rate-limited")
+            break
+
+        # Parse paper list items
+        paper_items = _re.findall(
+            r'<li class="arxiv-result">.*?</li>', html, _re.DOTALL)
+
+        if not paper_items:
+            print(f"  [{category}] ✓ HTML search: 0 papers in page")
+            break
+
+        for item in paper_items:
+            # arXiv ID
+            id_match = _re.search(r'arXiv:(\d+\.\d+)', item)
+            if not id_match:
+                continue
+            paper_id = id_match.group(1)
+            if paper_id in seen_links:
+                continue
+            seen_links.add(paper_id)
+
+            # Title
+            title = "Untitled"
+            t_match = _re.search(
+                r'<p class="title is-5 mathjax">(.*?)</p>', item, _re.DOTALL)
+            if t_match:
+                title = _re.sub(r'<.*?>', '', t_match.group(1))
+                title = _html.unescape(title).strip()
+
+            # Abstract snippet
+            summary = ""
+            s_match = _re.search(
+                r'<span class="abstract-short">(.*?)</span>', item, _re.DOTALL)
+            if s_match:
+                summary = _re.sub(r'<.*?>', '', s_match.group(1))
+                summary = _html.unescape(summary).strip()
+            else:
+                # Try full abstract
+                s_match = _re.search(
+                    r'<span class="abstract-full">(.*?)</span>',
+                    item, _re.DOTALL)
+                if s_match:
+                    summary = _re.sub(r'<.*?>', '', s_match.group(1))
+                    summary = _html.unescape(summary).strip()
+
+            # Link
+            link = f"{config.ARXIV_ABS_BASE_URL.rstrip('/')}/abs/{paper_id}"
+
+            # Primary category — extract from the listing
+            primary_cat = category
+            cat_match = _re.search(
+                r'<span class="tag is-small is-link">(.*?)</span>',
+                item, _re.DOTALL)
+            if cat_match:
+                primary_cat = cat_match.group(1).strip()
+
+            # Build a duck-compatible entry (attribute access like feedparser)
+            entry = _HtmlEntry(
+                id=link,
+                title=title,
+                summary=summary,
+                link=link,
+                arxiv_primary_category={"term": primary_cat},
+                author="Unknown",
+                authors=[],
+                published=date_from.strftime("%Y-%m-%d") + "T00:00:00Z",
+                updated=date_from.strftime("%Y-%m-%d") + "T00:00:00Z",
+                published_parsed=None,
+            )
+            all_results.append(entry)
+
+        if len(paper_items) < 50:
+            break  # Last page
+
+        time.sleep(config.API_DELAY * (0.5 + random.random() * 0.3))
+
+    return all_results
+
+
 def fetch_all(wait_on_429=False, date_from=None, date_to=None):
-    """拉取全部 CATEGORIES 的论文（每个分类独立请求），返回 (entries_by_category, stats)。
+    """拉取全部 CATEGORIES 的论文（每个分类独立请求），返回 (entries_by_category, stats).
 
     date_from/date_to: 'YYYY-MM-DD' 字符串（闭区间）。缺省时拉最近 3 天
     （或 --date 覆盖日的前 3 天），并自动附加一个回看窗口
@@ -419,6 +695,15 @@ def fetch_all(wait_on_429=False, date_from=None, date_to=None):
             first_request = False
 
             win_entries = _fetch_window(cat, w_from, w_to, wait_on_429)
+
+            # ── Fallback: if API returned 0 entries, try HTML search ──
+            if not win_entries and config.ARXIV_HTML_FALLBACK:
+                print(f"  [{cat}] API returned 0 entries — "
+                      f"falling back to arxiv.org HTML search...")
+                win_entries = _search_html_category(cat, w_from, w_to)
+                if win_entries:
+                    print(f"  [{cat}] ✓ HTML search: "
+                          f"{len(win_entries)} entries (fallback)")
 
             if win_entries:
                 # 成功 → 连续两次成功后间隔回落一级

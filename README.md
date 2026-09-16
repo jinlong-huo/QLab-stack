@@ -121,6 +121,60 @@ python3 arxiv_digest/Arxiv_filter.py --send
 | `MAX_PAPERS`     | 15     | 主 digest 最多显示几篇     |
 | `MAX_OCS_PAPERS` | 10     | OCS spotlight 最多显示几篇 |
 
+### 校园网 / 受限网络（SJTU）说明
+
+在 SJTU 校园网（或任何受限网络）下，arXiv 各域名的可达性并不一致：
+
+| 主机                       | 状态              | 说明                             |
+| -------------------------- | ----------------- | -------------------------------- |
+| `export.arxiv.org`（API）  | ❌ 被封 / 429 限流 | 传统 API 接口，校园网基本不可用  |
+| `arxiv.org/search/`        | ❌ 超时            | 动态搜索页被限流                 |
+| `arxiv.org`（abs / list）  | ✅ 可用            | 主页、摘要页、列表页均正常       |
+| `cn.arxiv.org`             | ✅ 可用            | 国内镜像                         |
+
+因此抓取在 API 返回 0 条时会**自动回退**到 HTML 搜索页（`arxiv.org/search/`）解析，
+而不是直接判定"今天没有论文"。开关是 `ARXIV_HTML_FALLBACK`。
+若该搜索页在你所在网络同样超时，请把 `ARXIV_API_BASE_URL` 指向可用镜像。
+
+**改用镜像**：在 `config.py` 里改这三个基址即可（默认走官方域名）：
+
+```python
+ARXIV_API_BASE_URL  = "https://export.arxiv.org"  # API 基址
+ARXIV_ABS_BASE_URL  = "https://arxiv.org"         # abs / PDF 基址
+ARXIV_LIST_BASE_URL = "https://arxiv.org"         # 列表页基址
+ARXIV_PDF_FALLBACK_HOSTS = ["https://cn.arxiv.org"]  # 主站持续失败时的备用镜像
+```
+
+**代理**：默认**绕过**系统代理（避免 Clash X / Surge 对 arXiv 限流）。
+如果你用 SJTU VPN 才能访问 arXiv，请设 `ARXIV_BYPASS_PROXY = False`。
+
+### PDF 下载：HTTP 406 与限流
+
+从共享校园 IP（SJTU 是 CGNAT，多人共用一个出口 IP）批量下载 PDF 时，
+arXiv 的 Fastly CDN 会返回 **HTTP 406 "Not Acceptable"** —— 通常从第 10 篇左右开始。
+
+**这不是坏链接，而是限流**：同一个请求过几秒重试就能成功。
+因此下载器对 406/429/500/502/503/504 会**指数退避重试**，而不是一次失败就放弃：
+
+| 参数                              | 默认值                 | 作用                       |
+| --------------------------------- | ---------------------- | -------------------------- |
+| `ARXIV_PDF_MAX_RETRIES`           | 4                      | 每篇最大重试次数           |
+| `ARXIV_PDF_RETRY_BACKOFF`         | `[10, 30, 60, 120]` 秒 | 各次重试的基础退避         |
+| `ARXIV_PDF_DELAY`                 | 5.0 秒                 | 篇与篇之间的基础间隔       |
+| `ARXIV_PDF_DELAY_JITTER`          | 0.5                    | 间隔随机抖动（±50%）       |
+| `ARXIV_PDF_COOLDOWN_AFTER_FAILS`  | 3                      | 连续失败几次后长暂停       |
+| `ARXIV_PDF_COOLDOWN_SECONDS`      | 90 秒                  | 长暂停时长                 |
+
+另外：下载内容会校验 `%PDF-` magic bytes，CDN 的 HTML 拦截页不会被当成 PDF 存盘。
+若仍频繁 406，就把 `ARXIV_PDF_FALLBACK_HOSTS` 设为 `["https://cn.arxiv.org"]` 走镜像。
+
+**失败可直接重跑** —— 已存在的文件会自动跳过，只补缺失的：
+
+```bash
+python3 arxiv_digest/download_papers.py
+python3 arxiv_digest/verify_downloads.py --days 7 --download   # 审计并补下
+```
+
 ---
 
 ## 📖 Paper Notes

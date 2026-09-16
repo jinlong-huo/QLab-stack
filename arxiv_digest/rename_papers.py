@@ -10,6 +10,15 @@ import hashlib
 import urllib.request
 import urllib.parse
 import xml.etree.ElementTree as ET
+from pathlib import Path
+
+# Make `arxiv_digest` importable when run directly, then pick up the
+# configurable arXiv API base URL (mirror support for restricted networks).
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
+
+from arxiv_digest import config  # noqa: E402
 
 ROOT = '/Users/Vir-G/Downloads/Paper'
 EXCLUDE_DIR = '_archive_seismic'
@@ -371,7 +380,8 @@ def query_arxiv_batch(arxiv_ids):
         time.sleep(_ARXIV_DELAY - elapsed)
 
     id_list = ','.join(arxiv_ids[:100])
-    url = f'https://export.arxiv.org/api/query?id_list={id_list}&max_results=100'
+    _api_base = config.ARXIV_API_BASE_URL.rstrip('/')
+    url = f'{_api_base}/api/query?id_list={id_list}&max_results=100'
     req = urllib.request.Request(url, headers={'User-Agent': 'PaperRenamer/1.0'})
     _arxiv_last_call = time.time()
 

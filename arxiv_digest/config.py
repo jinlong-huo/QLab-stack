@@ -33,6 +33,55 @@ def bj_today_str():
         return DATE_OVERRIDE
     return bj_now().strftime("%Y-%m-%d")
 
+# ── Proxy / endpoint configuration (SJTU / GFW bypass) ─────────
+#
+# From behind the national firewall (e.g. SJTU campus):
+#   - export.arxiv.org (API)  → blocked or 429 rate-limited
+#   - arxiv.org/search/       → blocked / times out
+#   - arxiv.org               → accessible (homepage, abs pages, list pages)
+#   - cn.arxiv.org            → accessible (Chinese mirror)
+#
+# You can override the base URLs below to use a working mirror.
+# For SJTU: try setting ARXIV_API_BASE_URL = "https://arxiv.org"
+#           (the abs scrape fallback automatically mirrors your choice)
+#
+# Proxy bypass: by default we BYPASS the system proxy for arXiv hosts
+# to avoid VPN/Clash X rate-limiting.  If you ARE behind a proxy that
+# gives you access to arXiv (e.g. SJTU VPN), set ARXIV_BYPASS_PROXY=False.
+ARXIV_PROXY_BYPASS_HOSTS = ["export.arxiv.org", "arxiv.org"]
+ARXIV_BYPASS_PROXY = True
+
+# Configurable base URLs — change these to use a mirror (e.g. "https://arxiv.org")
+ARXIV_API_BASE_URL = "https://export.arxiv.org"   # legacy API endpoint
+ARXIV_ABS_BASE_URL = "https://arxiv.org"           # abs / PDF base
+ARXIV_LIST_BASE_URL = "https://arxiv.org"          # list-page base (always accessible from CN)
+
+# When True and the API returns 0 entries for a category (e.g. rate-limited
+# or blocked), fall back to scraping the arxiv.org HTML listing/search pages
+# (separate CDN, usually reachable from China).  Read by fetch.fetch_all().
+ARXIV_HTML_FALLBACK = True
+
+# ── PDF download robustness ────────────────────────────────────
+#
+# arXiv's Fastly CDN answers burst-y automated PDF fetches from a shared
+# campus IP (SJTU CGNAT) with HTTP 406 "Not Acceptable" — usually from
+# roughly the 10th request onward in a tight loop.  It is a throttle, not
+# a bad URL: the exact same request succeeds when retried a moment later.
+# So the downloader must retry instead of treating the first non-200 as fatal.
+ARXIV_PDF_MAX_RETRIES = 4               # attempts per paper (1 + retries)
+ARXIV_PDF_RETRY_BACKOFF = [10.0, 30.0, 60.0, 120.0]   # base seconds per retry
+ARXIV_PDF_RETRY_STATUSES = (406, 429, 500, 502, 503, 504)
+ARXIV_PDF_DELAY = 5.0                   # base seconds between papers
+ARXIV_PDF_DELAY_JITTER = 0.5            # ± fraction of the delay, random
+ARXIV_PDF_COOLDOWN_AFTER_FAILS = 3      # consecutive failures before a pause
+ARXIV_PDF_COOLDOWN_SECONDS = 90.0       # length of that pause
+ARXIV_PDF_TIMEOUT = 90                  # per-request socket timeout
+
+# Fallback hosts for PDF/abs fetches, tried in order when the primary
+# host keeps failing.  Empty list = no mirror fallback.
+# e.g. ["https://cn.arxiv.org", "https://arxiv.org"]
+ARXIV_PDF_FALLBACK_HOSTS = []
+
 # ── arXiv API ──────────────────────────────────────────────────
 
 CATEGORIES = [
