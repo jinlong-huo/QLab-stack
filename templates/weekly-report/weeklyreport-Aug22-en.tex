@@ -1,164 +1,187 @@
-% !TEX TS-program = xelatex
-% !TEX encoding = UTF-8 Unicode
-% ================================================
-%  Weekly Research Report (English version)
-%  Compile: xelatex -> bibtex -> xelatex -> xelatex
-%
-%  NOTE: this version uses a plain `article` base rather than
-%  `sjtuweekly`, since that class's cover page / running headers are
-%  built for Chinese labels. If you have (or can get) an English
-%  variant of sjtuweekly.cls, swap the \documentclass line below and
-%  drop the manual title block in favor of \makeweeklytitle.
-% ================================================
-
 \documentclass[11pt]{article}
-\usepackage[margin=1in]{geometry}
-\usepackage{fontspec}
-\usepackage{booktabs}
-\usepackage{tabularx}
-\usepackage{array}
-\usepackage{titlesec}
-\usepackage{setspace}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
 
-% ---- Typography: standard Western academic-memo pairing ----
-\setmainfont{Times New Roman}       % body text
-% \setsansfont{Arial}                % uncomment if headings should be sans-serif
-\onehalfspacing
-\titleformat{\section}{\normalfont\bfseries\large}{\thesection}{1em}{}
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}
+\newtheorem{assumption}{Assumption}
+\newtheorem{property}{Empirical Property}
+\newtheorem{remark}{Remark}
+\newtheorem{proposition}{Design Implication}
 
-\renewcommand{\thefigure}{\arabic{figure}}
-\renewcommand{\thetable}{\arabic{table}}
+\newcommand{\Route}{\mathrm{R}}
+\newcommand{\Place}{\mathrm{P}}
+\newcommand{\Traffic}{\mathrm{T}}
+
+\title{Formalizing MoE Routing, Placement, and Induced Traffic}
+\author{}
+\date{}
 
 \begin{document}
+\maketitle
 
-% ---- Title block (manual, since not using sjtuweekly's cover page) ----
-\begin{center}
-{\Large\bfseries Weekly Research Report}\\[0.5em]
-{\large Huo Jinlong}\\[0.2em]
-% Week \#\,xx
-\end{center}
-\vspace{1.5em}
+This note formalizes three claims used to argue against treating MoE-induced
+network traffic as unstructured: (i) routing is a deterministic function of
+input and model, not a stochastic process; (ii) routing is, by construction,
+independent of expert placement; and (iii) the traffic that placement induces
+is nonetheless empirically local, which is the distinct fact that licenses
+regionally-reconfigurable optical interconnects.
 
-% ================================================
-% Sections 1-3 (motivation / approach / expected outcomes) usually
-% stay stable across a project and don't need rewriting every week --
-% only Sections 4-7 (progress / discussion / questions / plan) need
-% weekly updates.
-% ================================================
+\section{Setup}
 
-\section{Motivation}
+\begin{definition}[Model and input space]
+Let $\theta$ denote the frozen parameters of a trained MoE model, $\mathcal{X}$
+the space of input sequences, and $E=\{e_1,\dots,e_K\}$ the set of $K$ experts
+at a given MoE layer. For $x\in\mathcal{X}$, let $h_l(x_t\mid\theta)\in\mathbb{R}^d$
+denote the hidden representation of token $x_t$ at layer $l$, computed by the
+deterministic preceding sub-network of the model.
+\end{definition}
 
-MoE (Mixture-of-Experts) models rely on heavy All-to-All communication
-for expert routing during both training and inference. Existing EPS
-(electrical packet switching) interconnects suffer from low bandwidth
-utilization and congestion under this sparse, dynamic traffic pattern.
-OCS (optical circuit switching) offers higher link bandwidth and lower
-static latency, but circuit setup and reconfiguration overhead limits
-its practical benefit in fine-grained, dynamic routing scenarios. This
-work asks: can predicting expert-routing outcomes and pre-triggering
-circuit reconfiguration hide OCS's reconfiguration overhead inside the
-compute/communication pipeline -- preserving OCS's bandwidth advantage
-while avoiding its dynamic-routing weakness?
+\begin{definition}[Router]
+The router at layer $l$ is
+\[
+  \Route_l:\mathbb{R}^d\times\Theta_l\longrightarrow\Delta^{K-1},\qquad
+  \Route_l\bigl(h_l(x_t\mid\theta);\theta_l\bigr)=\mathrm{softmax}\bigl(W_l\,h_l(x_t\mid\theta)+b_l\bigr),
+\]
+followed by a $\mathrm{top}\text{-}k$ operator mapping $\Delta^{K-1}$ to a subset
+$S_{l,t}(x)\subseteq E$, $|S_{l,t}(x)|=k$.
+\end{definition}
 
-\section{Approach \& Supporting Work}
+\section{Determinism of routing}
 
-The core approach is to drive an OCS circuit simulator with expert
-routing traces extracted from real model weights, and evaluate a
-``circuit reuse + reconfiguration/compute overlap'' strategy under
-realistic load, rather than relying only on synthetic or uniform
-routing assumptions.
-% Supporting references (add BibTeX keys and cite, e.g. \cite{example_ocs_paper}):
-% \cite{example_ocs_paper}
-% \cite{example_moe_routing_paper}
+\begin{assumption}[Routing as a deterministic function of input and model]
+\label{ass:determinism}
+For fixed, frozen $\theta$ and given $x\in\mathcal{X}$, the routing decision at
+every layer and token position is a deterministic function of $(x,\theta)$ alone:
+\[
+  S_{l,t}(x) = F_l(x,\theta), \qquad\text{i.e.}\qquad
+  \mathrm{Routing} = F(\mathrm{inputs},\ \mathrm{model}).
+\]
+Routing is \emph{not} an i.i.d.\ stochastic process over $(l,t)$. Any observed
+run-to-run variability is attributable to factors external to $F$ itself
+(batch-dependent capacity dropping, non-associative floating-point reduction
+under distributed all-reduce, or training-time-only noise injection).
+\end{assumption}
 
-\section{Expected Outcomes (Medium/Long-term)}
+\begin{remark}[Latent conditioning exposes task/domain structure]
+\[
+  S_{l,t}(x) = F_l\bigl(h_l(x_t\mid z(x)),\,\theta_l\bigr), \qquad z(x)\in\mathcal{Z},
+\]
+where $z(x)$ is a latent task/domain/language variable. Empirically,
+$\mathrm{Corr}(S_{l,t},S_{l,t-1})$ and $\mathrm{Corr}(S_{l,t},S_{l-1,t})$ are
+bounded away from $0$, and $P(S_{l,t}\mid z)$ is markedly more concentrated
+than the pooled marginal $P(S_{l,t})$.
+\end{remark}
 
-Over the next 1--2 months:
-\begin{enumerate}
-  \item Characterize OCS's communication benefit over EPS across batch
-        sizes and topology scales, using real-weight-driven OCS simulation.
-  \item Determine how routing learnability (e.g., routing stability
-        before/after LoRA fine-tuning) affects the realized gain from
-        pre-triggering, and turn this into a reproducible evaluation
-        methodology.
-  \item Combine pre-triggering with vLLM's prefill/decode communication
-        patterns to recommend a deployment granularity for real
-        inference-serving scenarios.
-\end{enumerate}
+\section{Independence from placement}
 
-\section{Progress This Week}
+\begin{definition}[Placement]
+A placement is an assignment $\pi:E\to\mathcal{D}$ mapping experts to physical
+devices $\mathcal{D}=\{d_1,\dots,d_M\}$, chosen by the parallelization/sharding
+strategy and set independently of $\theta$.
+\end{definition}
 
-\textbf{Combining real model weights with OCS simulation}
+\begin{assumption}[Routing--placement independence]
+\label{ass:independence}
+For a communication-oblivious router (Assumption~\ref{ass:determinism} with
+$F_l$ having no dependence on $\pi$),
+\[
+  \forall\,\pi,\pi'\in\Pi:\qquad
+  P\bigl(S_{l,t}(x)\mid\theta,\pi\bigr) = P\bigl(S_{l,t}(x)\mid\theta,\pi'\bigr).
+\]
+The logical routing distribution is invariant under any relabeling of
+expert-to-device placement.
+\end{assumption}
 
-Real routing traces extracted from model weights were fed into the OCS
-simulator this week, with preliminary results below.
+\begin{definition}[Logical demand matrix]
+Fix a layer $l$. Let $A_l(x,\theta)\in\mathbb{N}^{|\mathcal{D}|\times K}$ be the
+matrix whose $(a,e)$ entry counts token-expert selections originating at
+device $d_a$ and targeting expert $e$:
+\[
+  A_l(x,\theta)_{a,e} \;=\; \bigl|\{\,t : \mathrm{src}(x_t)=d_a,\ e\in S_{l,t}(x)\,\}\bigr|.
+\]
+Here $\mathrm{src}(x_t)\in\mathcal{D}$ is the device currently holding token
+$x_t$, fixed by the (non-expert) tensor/data-parallel sharding and treated as
+exogenous to this section. By Assumption~\ref{ass:determinism},
+$A_l(x,\theta)$ depends only on $(x,\theta)$ — never on $\pi$.
+\end{definition}
 
-\begin{table}[htbp]
-\centering
-\small
-\begin{tabular}{lccc}
-\toprule
-\textbf{Metric} & \textbf{EPS} & \textbf{OCS} & \textbf{$\Delta$} \\
-\midrule
-Communication time    & 23,269 $\mu$s & 17,091 $\mu$s & --26.6\% \\
-OCS extra overhead     & --            & 333 $\mu$s    & -- \\
-Circuit reuse rate     & --            & 96.7\%        & -- \\
-Reconfiguration time    & --            & 150 $\mu$s (3 cold starts) & -- \\
-\bottomrule
-\end{tabular}
-\caption{Synthetic-expert + OCS comparison: 87/90 flows go optical
-after circuit setup, a clear latency advantage over EPS.}
-\label{tab:ocs_eps}
-\end{table}
+\begin{definition}[Induced physical traffic]
+\label{def:traffic}
+Let $\Pi_\pi\in\{0,1\}^{K\times|\mathcal{D}|}$ be the placement matrix with
+$(\Pi_\pi)_{e,d}=1$ iff $\pi(e)=d$ (one $1$ per row: each expert lives on one
+device). The induced device-to-device traffic is simply the matrix product
+\[
+  \Traffic_\pi(x,\theta) \;=\; A_l(x,\theta)\,\Pi_\pi \;\in\;\mathbb{N}^{|\mathcal{D}|\times|\mathcal{D}|},
+  \qquad
+  \Traffic_\pi(d_a,d_b) = \sum_{e} A_l(x,\theta)_{a,e}\,(\Pi_\pi)_{e,b}.
+\]
+$A_l$ carries all the input/model dependence; $\Pi_\pi$ carries all the
+placement dependence; the traffic matrix is their product.
+\end{definition}
 
-\noindent Takeaway: circuit reuse is high; reconfiguration overlaps
-with compute under the pipeline schedule, and is fully hidden under
-the DBO schedule.
+% \begin{definition}[Induced physical traffic]
+% Given a routing trace $\{S_{l,t}(x)\}$ and placement $\pi$, the induced traffic
+% between devices $d_a,d_b\in\mathcal{D}$ is
+% \[
+%   \Traffic_\pi(d_a\to d_b) = \sum_{l,t,x,e}
+%   \mathbb{1}[\mathrm{src}(x_t)=d_a]\cdot\mathbb{1}[e\in S_{l,t}(x)]\cdot\mathbb{1}[\pi(e)=d_b],
+% \]
+% so that
+% \[
+%   \Traffic = \Route(x,\theta)\ \circ\ \Place(\pi)
+% \]
+% factorizes into a placement-independent logical term and a routing-independent
+% physical term.
+% \end{definition}
 
-% If there were open problems this week, note them here, e.g.:
-% \noindent\textbf{Open issues:} simulator-vs-real-hardware gap,
-% specific difficulties in data/weight preprocessing, etc.
+\section{Locality: empirical, not definitional}
 
-\section{Discussion / Reflections}
+\begin{property}[Bounded-locality of induced traffic]
+\label{prop:locality}
+Let $B(e)$ denote the MoE block / expert-parallel group containing expert $e$,
+and $\mathcal{D}_{B(e)}\subset\mathcal{D}$ the device subset hosting that group,
+with $|\mathcal{D}_{B(e)}|\ll|\mathcal{D}|$. Empirically, for a fixed
+parallelization strategy,
+\[
+  \Pr\bigl[\pi(e)\in\mathcal{D}_{B(e)}\bigr]\approx 1,
+\]
+i.e., although $S_{l,t}$ has full support over $E$ in principle, $\Traffic_\pi$
+concentrates within bounded device subsets rather than spreading uniformly
+over $\mathcal{D}\times\mathcal{D}$.
+\end{property}
 
-The circuit reuse rate under real weights (96.7\%) is close to what
-was seen in the synthetic setting, suggesting that although real
-routing shows some load imbalance, it still exhibits meaningful
-temporal locality -- an early, encouraging sign for pre-triggering in
-realistic settings. This still needs to be confirmed at larger
-topology scales and across more batch configurations.
+\begin{remark}
+Assumption~\ref{ass:independence} and Property~\ref{prop:locality} are
+logically independent. The former says the \emph{router} does not consult
+$\pi$; the latter says the \emph{resulting} $\Traffic_\pi$ happens to be
+spatially concentrated. Both are needed to justify regional, rather than
+global, reconfigurability of the interconnect.
+\end{remark}
 
-\section{Questions for Advisor}
+\section{Design implication}
 
-\begin{enumerate}
-  \item For evaluating routing traces before/after LoRA fine-tuning,
-        is there a recommended metric for quantifying routing
-        stability?
-  \item Any guidance on the range of real model weights (model size,
-        number of experts) to use, to keep the benchmark
-        representative?
-\end{enumerate}
+\begin{proposition}[Regional reconfigurability suffices]
+Under Assumptions~\ref{ass:determinism}--\ref{ass:independence} and
+Property~\ref{prop:locality}, the interconnect fabric $\mathcal{F}$ need only
+support dynamic reconfiguration within each $\mathcal{D}_{B(e)}$, not across
+all of $\mathcal{D}\times\mathcal{D}$:
+\[
+  \mathcal{F} = \mathcal{F}_{\mathrm{electrical}}\bigl(\text{deterministic }TP/DP/PP\bigr)
+  \ \cup\ \mathcal{F}_{\mathrm{optical}}\bigl(\{\mathcal{D}_{B(e)}\}_{e\in E}\bigr).
+\]
+\end{proposition}
 
-\section{Plan for Next Week}
+\section{Scope boundary}
 
-\begin{enumerate}
-  \item Complete a full multi-batch, multi-topology benchmark on the
-        Qwen+OCS testbed and recalibrate OCS's benefit under real
-        weights.
-  \item Compare routing traces before/after LoRA fine-tuning in the
-        OCS simulator, to verify how much routing learnability
-        actually contributes to OCS pre-triggering.
-  \item Discuss the appropriate granularity for OCS pre-triggering in
-        inference-serving settings, in light of vLLM's
-        prefill/decode communication patterns.
-\end{enumerate}
-
-\vspace{1em}
-\noindent That covers this week's progress -- happy to take any
-feedback or corrections.
-
-% ================================================
-% \bibliographystyle{plain}
-% \bibliography{bib/database}
+\begin{remark}[Communication-aware routing breaks Assumption~\ref{ass:independence}]
+If the router is trained with a locality-aware auxiliary loss or device-limited
+capacity constraint, $F_l$ is no longer independent of $\pi$:
+\[
+  S_{l,t}(x) = F_l(x,\theta,\pi),
+\]
+and the factorization $\Traffic=\Route\circ\Place$ no longer holds; placement
+and routing must then be co-optimized rather than solved in two stages.
+\end{remark}
 
 \end{document}
