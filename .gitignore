@@ -12,6 +12,11 @@ launchd_stdout.log
 launchd_stderr.log
 *.log
 
+# PDF renamer v2 state (derived: lookup cache, report, undo log)
+arxiv_digest/.rename_cache_v2.json
+arxiv_digest/rename_report.tsv
+arxiv_digest/.rename_log_v2.jsonl
+
 # Python
 __pycache__/
 *.pyc
@@ -24,6 +29,10 @@ __pycache__/
 
 # macOS
 .DS_Store
+
+# Vault 上传：仅本地保留的分类（zotero 笔记含个人批注，不进公开仓库）
+knowledge-base/topics/zotero.md
+knowledge-base/topics/attachments/
 
 # LaTeX build artifacts
 *.pdf
