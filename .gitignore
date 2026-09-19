@@ -12,6 +12,11 @@ launchd_stdout.log
 launchd_stderr.log
 *.log
 
+# PDF renamer v2 state (derived: lookup cache, report, undo log)
+arxiv_digest/.rename_cache_v2.json
+arxiv_digest/rename_report.tsv
+arxiv_digest/.rename_log_v2.jsonl
+
 # Python
 __pycache__/
 *.pyc

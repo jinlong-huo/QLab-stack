@@ -14,7 +14,8 @@ arxiv_digest/               # Pipeline (fetch → filter → select → digest)
   ├── classify.py           #   Subfolder router: digest paper → LLM/moe, OCS/hardware, …
   ├── download_papers.py    #   PDF downloader (routes to topic subfolders via classify.py)
   ├── verify_downloads.py   #   Audit: digest papers vs on-disk PDFs; backfill missing (--days/--download)
-  ├── rename_papers.py      #   PDF renamer (Zotero format)
+  ├── rename_papers.py      #   PDF renamer v1 (legacy; has the arXiv-mirror fallbacks)
+  ├── rename_papers_v2.py   #   PDF renamer v2 (canonical): metadata lookup + verification
   ├── test_catchup.py       #   Catch-up mechanism test (no network)
   ├── test_classify.py      #   Subfolder routing golden cases (no network)
   └── test_verify.py        #   Download-verify matching tests (no network)
@@ -31,7 +32,7 @@ onboarding/ / offboarding/ # Join/leave procedures
 ## Key conventions
 
 - **Paper notes**: copy `paper-notes/template.md` → `members/<name>/paper-notes/<year>/<paper-slug>.md`
-- **Python**: single dependency (`feedparser`), install with `pip install -r requirements.txt`
+- **Python**: dependencies are pinned in `requirements.txt` (`pip install -r requirements.txt`)
 - **Git**: `main` is protected; work on `feature/*` branches; commit types per [CONTRIBUTING.md](CONTRIBUTING.md)
 - **Quick commands**: `make run`, `make daily`, `make test`, `make note-new NAME=... FILE=...`
 - **Vault notes → repo**: `make seed-check` (read-only drift), `make seed-sync ARGS=--apply`,
@@ -47,6 +48,7 @@ onboarding/ / offboarding/ # Join/leave procedures
 4. **Arxiv_filter.py** — Orchestrates the pipeline. `--wait` auto-retries on 429; `--from YYYY-MM-DD --to YYYY-MM-DD` backfills a period; `--ignore-seen` re-scores regardless of digest history (use with `--from/--to`).
 5. **download_papers.py** — Routes each digest paper to a topic subfolder via `classify.py`: `LLM/{moe,memory,agents,train,eval,inference,misc}`, `OCS/{hardware,topology,algorithms,applications}`, or top-level `Distributed/` (collectives / distributed-training infra). Most-specific topic wins (MoE-serving → `moe`); weak-signal papers fall back to `misc`/`applications`. Decisions are logged to `download_log.json` for review; tune rules in `config.SUBFOLDER_RULES`.
 6. **verify_downloads.py** — Audits that digest papers actually exist on disk (match by arXiv ID or normalized title). Default: current digest; `--days N`: papers shown in digests within the last N days ("useful papers"); `--download`: backfills missing ones into their classified subfolders. `run_daily.sh` runs it report-only after renaming.
+7. **rename_papers_v2.py** — Renames PDFs to `Author_Year_Title.pdf` (arXiv/Crossref/OpenAlex/S2 lookup, every match verified against the PDF's own page 1). The paper library lives **outside** this repo: root comes from `--root`, then `$QLAB_PAPER_ROOT`, then `/Users/Vir-G/Downloads/Paper`; the cache/report/undo log stay in `arxiv_digest/`. Needs poppler (`pdfinfo`/`pdftotext`) **and** `pdfminer.six` — it exits loudly if either is missing (a missing pdfminer would otherwise skip every file and look like a clean run). Report is read-only by default; `--apply` writes only high/medium confidence renames, `--revert` undoes the last run, `--acm` targets top-level ACM downloads, `--file` debugs one PDF.
 
 ### Two-tier digest gate + carry-over
 
@@ -57,3 +59,5 @@ All knobs live in `config.py`: `CATEGORIES`, `KEYWORDS`, `OCS_KEYWORDS`, `MIN_SC
 ## Dependencies
 
 - Python 3.11+ with `feedparser` (see `requirements.txt`)
+- For the PDF renamer: poppler (`pdfinfo`/`pdftotext`) + `pdfminer.six`, and run it with the
+  interpreter that has them (`python3.12 arxiv_digest/rename_papers_v2.py`)

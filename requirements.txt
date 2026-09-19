@@ -1,3 +1,4 @@
 feedparser>=6.0.0
 PyPDF2>=3.0.0
 pdfplumber>=0.9.0
+pdfminer.six>=20221105   # arxiv_digest/rename_papers_v2.py (page-1 font/layout title detection)
